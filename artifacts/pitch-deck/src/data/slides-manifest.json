@@ -1,0 +1,58 @@
+[
+  {
+    "id": "a1f0c2d4-1b3e-4a55-9c10-000000000001",
+    "position": 1,
+    "filepath": "src/pages/slides/Title.tsx",
+    "title": "ShipKit",
+    "description": "Title slide — ShipKit, automated CI/CD for React Native and Expo.",
+    "speakerNotes": ""
+  },
+  {
+    "id": "a1f0c2d4-1b3e-4a55-9c10-000000000002",
+    "position": 2,
+    "filepath": "src/pages/slides/Problem.tsx",
+    "title": "The Problem",
+    "description": "Mobile shipping is manual: fragmented tooling, no visibility, specialist knowledge.",
+    "speakerNotes": ""
+  },
+  {
+    "id": "a1f0c2d4-1b3e-4a55-9c10-000000000003",
+    "position": 3,
+    "filepath": "src/pages/slides/Solution.tsx",
+    "title": "The Solution",
+    "description": "One pipeline connecting GitHub, EAS, and App Store Connect.",
+    "speakerNotes": ""
+  },
+  {
+    "id": "a1f0c2d4-1b3e-4a55-9c10-000000000004",
+    "position": 4,
+    "filepath": "src/pages/slides/Pipeline.tsx",
+    "title": "The Pipeline",
+    "description": "Three-stage flow: Sync, Build, Submit.",
+    "speakerNotes": ""
+  },
+  {
+    "id": "a1f0c2d4-1b3e-4a55-9c10-000000000005",
+    "position": 5,
+    "filepath": "src/pages/slides/WebDashboard.tsx",
+    "title": "Web Dashboard",
+    "description": "Mission control on the web with stats, run history, and live logs.",
+    "speakerNotes": ""
+  },
+  {
+    "id": "a1f0c2d4-1b3e-4a55-9c10-000000000006",
+    "position": 6,
+    "filepath": "src/pages/slides/MobileApp.tsx",
+    "title": "Mobile App",
+    "description": "Track deployments, get push notifications, and read live logs on the go.",
+    "speakerNotes": ""
+  },
+  {
+    "id": "a1f0c2d4-1b3e-4a55-9c10-000000000007",
+    "position": 7,
+    "filepath": "src/pages/slides/Closing.tsx",
+    "title": "Closing",
+    "description": "Closing brand lockup and call to action.",
+    "speakerNotes": ""
+  }
+]
