@@ -1,0 +1,58 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# ShipKit — Example Nginx configuration
+#
+# Use this when running ShipKit behind nginx on a VPS / bare-metal server
+# instead of the Docker Compose setup (which handles routing internally).
+#
+# Replace:
+#   your-domain.com  → your actual domain
+#   5000             → the PORT the ShipKit API server listens on
+#
+# Enable: sudo ln -s /etc/nginx/sites-available/shipkit /etc/nginx/sites-enabled/
+# ─────────────────────────────────────────────────────────────────────────────
+
+server {
+    listen 80;
+    server_name your-domain.com;
+
+    # Redirect HTTP → HTTPS (uncomment after obtaining a certificate)
+    # return 301 https://$host$request_uri;
+
+    # API — proxy to the ShipKit Express server
+    location /api/ {
+        proxy_pass         http://127.0.0.1:5000/api/;
+        proxy_http_version 1.1;
+        proxy_set_header   Host              $host;
+        proxy_set_header   X-Real-IP         $remote_addr;
+        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto $scheme;
+        # Allow larger uploads for zip source files (default is 1m)
+        client_max_body_size 600m;
+        # SSE log streams — disable buffering
+        proxy_buffering    off;
+        proxy_cache        off;
+        proxy_read_timeout 3600s;
+    }
+
+    # Frontend static files — served directly by nginx from the built dist/
+    location / {
+        root   /var/www/shipkit;
+        index  index.html;
+        # SPA fallback: unknown paths → index.html (client-side routing)
+        try_files $uri $uri/ /index.html;
+    }
+}
+
+# ── HTTPS (uncomment and configure after: certbot --nginx -d your-domain.com) ─
+# server {
+#     listen 443 ssl;
+#     server_name your-domain.com;
+#
+#     ssl_certificate     /etc/letsencrypt/live/your-domain.com/fullchain.pem;
+#     ssl_certificate_key /etc/letsencrypt/live/your-domain.com/privkey.pem;
+#     include             /etc/letsencrypt/options-ssl-nginx.conf;
+#     ssl_dhparam         /etc/letsencrypt/ssl-dhparams.pem;
+#
+#     location /api/ { ... }  # same as above
+#     location /    { ... }  # same as above
+# }
