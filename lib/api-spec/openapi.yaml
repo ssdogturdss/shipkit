@@ -1,0 +1,783 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: Replit → GitHub → App Store deployment pipeline API
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: configs
+    description: Pipeline configuration
+  - name: runs
+    description: Pipeline run operations
+  - name: logs
+    description: Run log entries
+  - name: stats
+    description: Dashboard statistics
+  - name: github
+    description: GitHub account connection
+
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /pipeline-configs:
+    get:
+      operationId: listPipelineConfigs
+      tags: [configs]
+      summary: List all pipeline configurations
+      responses:
+        "200":
+          description: List of pipeline configs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PipelineConfig"
+    post:
+      operationId: createPipelineConfig
+      tags: [configs]
+      summary: Create a pipeline configuration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PipelineConfigInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PipelineConfig"
+
+  /pipeline-configs/{id}:
+    get:
+      operationId: getPipelineConfig
+      tags: [configs]
+      summary: Get a pipeline configuration
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Pipeline config
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PipelineConfig"
+        "404":
+          description: Not found
+    patch:
+      operationId: updatePipelineConfig
+      tags: [configs]
+      summary: Update a pipeline configuration
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PipelineConfigUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PipelineConfig"
+        "404":
+          description: Not found
+    delete:
+      operationId: deletePipelineConfig
+      tags: [configs]
+      summary: Delete a pipeline configuration
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+
+  /pipeline-configs/{id}/upload-source:
+    post:
+      operationId: uploadPipelineSource
+      tags: [configs]
+      summary: Upload a zip file as the build source for this pipeline
+      description: >
+        Accepts a zip file containing the Expo app source (app.json at the root).
+        Extracts it server-side and marks this config as using an uploaded source,
+        skipping GitHub sync on the next run. Upload replaces any previously uploaded source.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Source uploaded and extracted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadSourceResponse"
+        "400":
+          description: Invalid zip or no app.json found
+        "404":
+          description: Not found
+    delete:
+      operationId: deletePipelineSource
+      tags: [configs]
+      summary: Remove an uploaded source and revert to GitHub sync
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Upload cleared
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PipelineConfig"
+        "404":
+          description: Not found
+
+  /pipeline-configs/{id}/test-connection:
+    post:
+      operationId: testPipelineConnection
+      tags: [configs]
+      summary: Test stored credentials against each service (read-only, no build triggered)
+      description: >
+        Runs a lightweight, read-only check against GitHub, Expo EAS, and App
+        Store Connect using the credentials saved on this config. No pipeline
+        run is started and nothing is built or submitted.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Per-service connection test results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConnectionTestResponse"
+        "404":
+          description: Not found
+
+  /pipeline-runs:
+    get:
+      operationId: listPipelineRuns
+      tags: [runs]
+      summary: List pipeline runs
+      parameters:
+        - name: configId
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of runs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PipelineRun"
+    post:
+      operationId: triggerPipelineRun
+      tags: [runs]
+      summary: Trigger a new pipeline run
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PipelineRunTrigger"
+      responses:
+        "201":
+          description: Run started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PipelineRun"
+
+  /pipeline-runs/{id}:
+    get:
+      operationId: getPipelineRun
+      tags: [runs]
+      summary: Get a pipeline run with its stages
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Pipeline run with stages
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PipelineRunDetail"
+        "404":
+          description: Not found
+
+  /pipeline-runs/{id}/logs:
+    get:
+      operationId: listRunLogs
+      tags: [logs]
+      summary: Get log entries for a pipeline run
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Log entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RunLog"
+
+  /pipeline-runs/{id}/logs/stream:
+    get:
+      operationId: streamRunLogs
+      tags: [logs]
+      summary: Stream log entries via SSE (text/event-stream)
+      description: >
+        Server-Sent Events endpoint. Each event is a JSON-serialised RunLog object.
+        A terminal event `{"type":"done","status":"..."}` is emitted when the run
+        reaches a final state. Clients should use EventSource rather than fetch.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: SSE stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                description: Newline-delimited SSE frames
+
+  /pipeline-runs/{id}/stages/{stage}/retry:
+    post:
+      operationId: retryPipelineStage
+      tags: [runs]
+      summary: Retry a specific stage of a pipeline run
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: stage
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [sync, build, submit]
+      responses:
+        "200":
+          description: Stage re-queued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PipelineRunDetail"
+        "404":
+          description: Not found
+
+  /pipeline-stats:
+    get:
+      operationId: getPipelineStats
+      tags: [stats]
+      summary: Get dashboard summary statistics
+      responses:
+        "200":
+          description: Stats summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PipelineStats"
+
+  /github/status:
+    get:
+      operationId: getGithubStatus
+      tags: [github]
+      summary: Check whether the Replit-managed GitHub account is connected
+      responses:
+        "200":
+          description: Connection status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GithubStatus"
+
+  /github/repos:
+    get:
+      operationId: listGithubRepos
+      tags: [github]
+      summary: List repositories accessible to the connected GitHub account
+      responses:
+        "200":
+          description: List of repositories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GithubRepo"
+        "502":
+          description: GitHub request failed
+
+  /github/repos/{owner}/{repo}/branches:
+    get:
+      operationId: listGithubBranches
+      tags: [github]
+      summary: List branch names for a repository
+      parameters:
+        - name: owner
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: repo
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of branch names
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+        "502":
+          description: GitHub request failed
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+
+    PipelineConfig:
+      type: object
+      required:
+        - id
+        - name
+        - githubOwner
+        - githubRepo
+        - githubBranch
+        - easProjectSlug
+        - appStoreAppleId
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        githubOwner:
+          type: string
+        githubRepo:
+          type: string
+        githubBranch:
+          type: string
+        easProjectSlug:
+          type: string
+        appStoreAppleId:
+          type: string
+        appStoreBundleId:
+          type: string
+        notifyWebhookUrl:
+          type: string
+        autoDeployOnPush:
+          type: boolean
+        sourceType:
+          type: string
+          enum: [github, upload]
+        hasUploadedSource:
+          type: boolean
+        hasGithubToken:
+          type: boolean
+        hasEasToken:
+          type: boolean
+        hasAppStoreKey:
+          type: boolean
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+
+    PipelineConfigInput:
+      type: object
+      required:
+        - name
+        - githubOwner
+        - githubRepo
+        - githubBranch
+        - easProjectSlug
+        - appStoreAppleId
+      properties:
+        name:
+          type: string
+          minLength: 1
+        githubOwner:
+          type: string
+          minLength: 1
+        githubRepo:
+          type: string
+          minLength: 1
+        githubBranch:
+          type: string
+          minLength: 1
+        easProjectSlug:
+          type: string
+          minLength: 1
+        appStoreAppleId:
+          type: string
+          minLength: 1
+        appStoreBundleId:
+          type: string
+        notifyWebhookUrl:
+          type: string
+        autoDeployOnPush:
+          type: boolean
+        githubToken:
+          type: string
+        easToken:
+          type: string
+        appStoreKeyId:
+          type: string
+        appStoreIssuerId:
+          type: string
+        appStorePrivateKey:
+          type: string
+
+    PipelineConfigUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        githubOwner:
+          type: string
+        githubRepo:
+          type: string
+        githubBranch:
+          type: string
+        easProjectSlug:
+          type: string
+        appStoreAppleId:
+          type: string
+        appStoreBundleId:
+          type: string
+        notifyWebhookUrl:
+          type: string
+        autoDeployOnPush:
+          type: boolean
+        githubToken:
+          type: string
+        easToken:
+          type: string
+        appStoreKeyId:
+          type: string
+        appStoreIssuerId:
+          type: string
+        appStorePrivateKey:
+          type: string
+
+    PipelineRun:
+      type: object
+      required:
+        - id
+        - configId
+        - status
+        - triggeredBy
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: integer
+        configId:
+          type: integer
+        configName:
+          type: string
+        status:
+          type: string
+          enum: [pending, running, success, failed, cancelled]
+        triggeredBy:
+          type: string
+          enum: [manual, push]
+        currentStage:
+          type: ["string", "null"]
+          enum: [sync, build, submit, null]
+        errorMessage:
+          type: ["string", "null"]
+        startedAt:
+          type: ["string", "null"]
+        completedAt:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+
+    PipelineRunDetail:
+      type: object
+      required:
+        - id
+        - configId
+        - status
+        - triggeredBy
+        - stages
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: integer
+        configId:
+          type: integer
+        configName:
+          type: string
+        status:
+          type: string
+          enum: [pending, running, success, failed, cancelled]
+        triggeredBy:
+          type: string
+          enum: [manual, push]
+        currentStage:
+          type: ["string", "null"]
+          enum: [sync, build, submit, null]
+        errorMessage:
+          type: ["string", "null"]
+        startedAt:
+          type: ["string", "null"]
+        completedAt:
+          type: ["string", "null"]
+        stages:
+          type: array
+          items:
+            $ref: "#/components/schemas/RunStage"
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+
+    RunStage:
+      type: object
+      required:
+        - id
+        - runId
+        - stageName
+        - status
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: integer
+        runId:
+          type: integer
+        stageName:
+          type: string
+          enum: [sync, build, submit]
+        status:
+          type: string
+          enum: [pending, running, success, failed, skipped]
+        externalUrl:
+          type: ["string", "null"]
+        startedAt:
+          type: ["string", "null"]
+        completedAt:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+
+    RunLog:
+      type: object
+      required:
+        - id
+        - runId
+        - level
+        - message
+        - createdAt
+      properties:
+        id:
+          type: integer
+        runId:
+          type: integer
+        stage:
+          type: ["string", "null"]
+          enum: [sync, build, submit, null]
+        level:
+          type: string
+          enum: [info, warn, error, success]
+        message:
+          type: string
+        createdAt:
+          type: string
+
+    PipelineRunTrigger:
+      type: object
+      required:
+        - configId
+      properties:
+        configId:
+          type: integer
+
+    PipelineStats:
+      type: object
+      required:
+        - totalRuns
+        - successfulRuns
+        - failedRuns
+        - runningRuns
+        - successRate
+        - lastRunAt
+        - recentRuns
+      properties:
+        totalRuns:
+          type: integer
+        successfulRuns:
+          type: integer
+        failedRuns:
+          type: integer
+        runningRuns:
+          type: integer
+        successRate:
+          type: number
+        lastRunAt:
+          type: ["string", "null"]
+        recentRuns:
+          type: array
+          items:
+            $ref: "#/components/schemas/PipelineRun"
+
+    GithubStatus:
+      type: object
+      required:
+        - connected
+      properties:
+        connected:
+          type: boolean
+        login:
+          type: string
+
+    GithubRepo:
+      type: object
+      required:
+        - owner
+        - repo
+        - fullName
+        - defaultBranch
+        - private
+      properties:
+        owner:
+          type: string
+        repo:
+          type: string
+        fullName:
+          type: string
+        defaultBranch:
+          type: string
+        private:
+          type: boolean
+
+    UploadSourceResponse:
+      type: object
+      required:
+        - config
+        - extractedPath
+        - fileCount
+      properties:
+        config:
+          $ref: "#/components/schemas/PipelineConfig"
+        extractedPath:
+          type: string
+        fileCount:
+          type: integer
+
+    ConnectionTestResult:
+      type: object
+      required:
+        - service
+        - status
+        - message
+      properties:
+        service:
+          type: string
+          enum: [github, eas, appstore]
+        status:
+          type: string
+          enum: [ok, error, skipped]
+        message:
+          type: string
+
+    ConnectionTestResponse:
+      type: object
+      required:
+        - results
+      properties:
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/ConnectionTestResult"
